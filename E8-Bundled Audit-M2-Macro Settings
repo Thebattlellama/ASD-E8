@@ -1,0 +1,77 @@
+$version = "16.0"
+$applications = @("Word", "Excel", "PowerPoint", "Outlook")
+
+# Function to display registry key and value
+function DisplayRegistryValue($key, $value) {
+    Write-Host "    $key : $value"
+}
+
+# Function to display section heading
+function DisplaySectionHeading($heading) {
+    Write-Host
+    Write-Host "===================================================================================================="
+    Write-Host "$heading"
+    
+    Write-Host
+}
+
+
+# VBAWarnings for each Office application
+DisplaySectionHeading "M1- Microsoft Office macros are disabled for users that do not have a demonstrated business requirement
+`nM2-Allowed and blocked Microsoft Office macro execution events are logged. 
+`nValue should be 4"
+foreach ($application in $applications) {
+    $vbaWarningsRegKey = "HKCU:\Software\Microsoft\Office\$version\$application\Security"
+    $vbaWarningsValue = Get-ItemProperty -Path $vbaWarningsRegKey -Name "VBAWarnings" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "VBAWarnings"
+    if ($vbaWarningsValue -eq $null) {
+        Write-Host "Status: Does not exist or value not set"
+    } else {
+        DisplayRegistryValue "VBAWarnings for $application" $vbaWarningsValue
+    }
+}
+
+
+# BlockContentExecutionFromInternet
+$blockContentExecutionRegKey = "HKCU:\Software\Microsoft\Office\$version\Security\BlockContentExecutionFromInternet"
+$blockContentExecutionValue = Get-ItemProperty -Path $blockContentExecutionRegKey -Name "(Default)" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "(Default)"
+DisplaySectionHeading "M1-Microsoft Office macros in files originating from the internet are blocked. 
+`nValue should be 1"
+foreach ($application in $applications) {
+    $blockcontentexecutionfrominternetRegKey = "HKCU:\Software\Microsoft\Office\$version\$application\Security"
+    $blockcontentexecutionfrominternetValue = Get-ItemProperty -Path $blockcontentexecutionfrominternetRegKey -Name "blockcontentexecutionfrominternet" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "blockcontentexecutionfrominternet"
+    if ($blockcontentexecutionfrominternetValue -eq $null) {
+        Write-Host "Status: Does not exist or value not set"
+    } else {
+        DisplayRegistryValue "blockcontentexecutionfrominternet for $application" $blockcontentexecutionfrominternetValue
+    }
+}
+
+
+# MacroRuntimeScanScope
+$macroRuntimeScanScopeRegKey = "HKCU:\Software\Microsoft\Office\16.0\Common\Security"
+$macroRuntimeScanScopeValue = Get-ItemProperty -Path $macroRuntimeScanScopeRegKey -Name "MacroRuntimeScanScope" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "MacroRuntimeScanScope"
+DisplaySectionHeading "M1-Microsoft Office macro antivirus scanning is enabled.`nValue should be 1"
+if ($null -eq $macroRuntimeScanScopeValue) {
+    Write-Host "Status: Does not exist or value not set"
+} else {
+    DisplayRegistryValue $macroRuntimeScanScopeRegKey $macroRuntimeScanScopeValue
+}
+
+
+# ProtectedView settings for each Office application
+DisplaySectionHeading "M2-Microsoft Office macros are blocked from making Win32 API calls. 
+`nThis requirement is specific to a MS Defender ASR Rule. Ensuring the regkey values are 0, will enabled ProtectedView for files originating from the internet, files located in untrusted locations and files within Outlook. This control set combined with antivirus scanning and disabling macros (vbawarnings reg key) will ensure  macros are blocked from making Win32 API calls
+`nValue should be 0"
+foreach ($application in $applications) {
+    $protectedViewRegKey = "HKCU:\Software\Microsoft\Office\$version\$application\Security\ProtectedView"
+    $disableAttachmentsInPVValue = Get-ItemProperty -Path $protectedViewRegKey -Name "DisableAttachmentsInPV" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "DisableAttachmentsInPV"
+    $disableInternetFilesInPVValue = Get-ItemProperty -Path $protectedViewRegKey -Name "DisableInternetFilesInPV" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "DisableInternetFilesInPV"
+    $disableUnsafeLocationsInPVValue = Get-ItemProperty -Path $protectedViewRegKey -Name "DisableUnsafeLocationsInPV" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty "DisableUnsafeLocationsInPV"
+    if ($disableAttachmentsInPVValue -eq $null -or $disableInternetFilesInPVValue -eq $null -or $disableUnsafeLocationsInPVValue -eq $null) {
+        Write-Host "Status: Registry key does not exist or value not set for $application"
+    } else {
+        DisplayRegistryValue "DisableAttachmentsInPV for $application" $disableAttachmentsInPVValue
+        DisplayRegistryValue "DisableInternetFilesInPV for $application" $disableInternetFilesInPVValue
+        DisplayRegistryValue "DisableUnsafeLocationsInPV for $application" $disableUnsafeLocationsInPVValue
+    }
+}
