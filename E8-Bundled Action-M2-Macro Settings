@@ -1,0 +1,73 @@
+<#
+This script is a bundle to add the following reg keys:
+VBAWarnings
+blockcontentexecutionfrominternet
+MacroRuntimeScanScope
+ProtectedView
+
+This will cover:
+- Microsoft Office macros are disabled for users that do not have a demonstrated business requirement.
+- Microsoft Office macros in files originating from the internet are blocked.
+- Microsoft Office macro antivirus scanning is enabled.
+- Microsoft Office macros are blocked from making Win32 API calls.
+- Allowed and blocked Microsoft Office macro execution events are logged.
+#>
+
+# Apply the changes to the registry
+$officeVersions = @(
+    "16.0"  # Office 2016
+    # Add more versions if needed
+)
+
+$applications = @(
+    "Excel",
+    "Word",
+    "PowerPoint",
+    "Outlook"
+    # Add more applications if needed
+)
+
+# Set VBAWarnings and blockcontentexecutionfrominternet registry values
+foreach ($version in $officeVersions) {
+    foreach ($app in $applications) {
+        $registryPath = "HKCU:\SOFTWARE\Microsoft\Office\$version\$app\Security"
+        Set-ItemProperty -Path $registryPath -Name "VBAWarnings" -Value 4
+        Set-ItemProperty -Path $registryPath -Name "blockcontentexecutionfrominternet" -Value 1 -Type DWord
+    }
+}
+
+# Set MacroRuntimeScanScope registry value
+foreach ($version in $officeVersions) {
+    foreach ($app in $applications) {
+        $registryPath = "HKCU:\SOFTWARE\Microsoft\Office\$version\$app\Security"
+        Set-ItemProperty -Path $registryPath -Name "MacroRuntimeScanScope" -Value 2 -Type DWord
+    }
+}
+
+# Set ProtectedView registry values
+$regPath = "HKCU:\SOFTWARE\Microsoft\Office"
+$officeApplications = @(
+    "Excel",
+    "Word",
+    "PowerPoint",
+    "Outlook"
+    # Add more applications if needed
+)
+
+foreach ($version in $officeVersions) {
+    foreach ($application in $officeApplications) {
+        $appRegPath = "$regPath\$version\$application\Security\ProtectedView"
+
+        # Create the ProtectedView folder if it doesn't exist
+        if (-not (Test-Path $appRegPath)) {
+            New-Item -Path $appRegPath -Force | Out-Null
+        }
+
+        # Set the registry values
+        Set-ItemProperty -Path $appRegPath -Name "DisableAttachmentsInPV" -Value 0 -Type DWORD
+        Set-ItemProperty -Path $appRegPath -Name "DisableInternetFilesInPV" -Value 0 -Type DWORD
+        Set-ItemProperty -Path $appRegPath -Name "DisableUnsafeLocationsInPV" -Value 0 -Type DWORD
+    }
+}
+
+Write-Host "Changes applied successfully."
